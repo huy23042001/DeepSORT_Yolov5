@@ -39,7 +39,7 @@ while camera.grab():
     print("sending")
 
 # # block until all async messages are sent
-producer.flush()
+# producer.flush()
 
 # # configure multiple retries
-producer = KafkaProducer(retries=5)
+# producer = KafkaProducer(retries=5)
