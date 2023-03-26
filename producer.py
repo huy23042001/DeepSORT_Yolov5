@@ -1,55 +1,45 @@
+from datetime import datetime
 import json
 from kafka import KafkaProducer
 from kafka.errors import KafkaError
 from numpy import log
+import time
+import cv2
+import base64
+producer = KafkaProducer(bootstrap_servers=['10.0.2.196:9092','10.0.2.197:9093'])
 
-producer = KafkaProducer(bootstrap_servers=['10.0.2.196:2181'])
+def encode(self, frame):
+    _, buff = cv2.imencode('.jpg', frame)
+    b64 = base64.b64encode(buff).decode()
+    send_time = datetime.now()
+    global camera_id
+    data = {
+        'camera_id': camera_id,
+        'data': b64,
+        'time': send_time
+    }
+    return json.dumps(data).encode('utf-8')
 
-# Asynchronous by default
-future = producer.send('my-topic', b'raw_bytes')
+global camera_id
+camera_id = 0
+camera = cv2.VideoCapture(camera_id)
 
-# Block for 'synchronous' sends
-try:
-    record_metadata = future.get(timeout=10)
-except KafkaError:
-    # Decide what to do if produce request failed...
-    log.exception()
-    pass
+while camera.grab():
+    _, img = camera.retrieve()
+    _, buff = cv2.imencode('.jpg', img)
+    b64 = base64.b64encode(buff).decode()
+    send_time = datetime.now()
+    data = {
+        'camera_id': camera_id,
+        'data': b64,
+        'time': send_time.timestamp()
+    }
+    producer.send('my-topic', json.dumps(data).encode('utf-8'))
+    time.sleep(2)
+    print("sending")
 
-# Successful result returns assigned partition and offset
-print (record_metadata.topic)
-print (record_metadata.partition)
-print (record_metadata.offset)
+# # block until all async messages are sent
+# producer.flush()
 
-# produce keyed messages to enable hashed partitioning
-producer.send('my-topic', key=b'foo', value=b'bar')
-
-# encode objects via msgpack
-producer = KafkaProducer(value_serializer=msgpack.dumps)
-producer.send('msgpack-topic', {'key': 'value'})
-
-# produce json messages
-producer = KafkaProducer(value_serializer=lambda m: json.dumps(m).encode('ascii'))
-producer.send('json-topic', {'key': 'value'})
-
-# produce asynchronously
-for _ in range(100):
-    producer.send('my-topic', b'msg')
-
-def on_send_success(record_metadata):
-    print(record_metadata.topic)
-    print(record_metadata.partition)
-    print(record_metadata.offset)
-
-def on_send_error(excp):
-    log.error('I am an errback', exc_info=excp)
-    # handle exception
-
-# produce asynchronously with callbacks
-producer.send('my-topic', b'raw_bytes').add_callback(on_send_success).add_errback(on_send_error)
-
-# block until all async messages are sent
-producer.flush()
-
-# configure multiple retries
-producer = KafkaProducer(retries=5)
+# # configure multiple retries
+# producer = KafkaProducer(retries=5)

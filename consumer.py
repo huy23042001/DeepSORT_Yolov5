@@ -2,7 +2,15 @@ import argparse
 import json
 from kafka import KafkaConsumer
 import cv2
+import numpy as np
+from pyspark.sql import SparkSession
+import base64
+from pyspark.sql.functions import *
+from pyspark.sql.types import *
 from tracking import VideoTracker
+
+spark  =  SparkSession.builder.appName('video_tracking.com').getOrCreate()
+spark.sparkContext.setLogLevel("WARN")
 # To consume latest messages and auto-commit offsets
 # consumer = KafkaConsumer('my-topic',
 #                          group_id='my-group',
@@ -43,7 +51,15 @@ class Consum(object):
         self.args = args
         self.camera = cv2.VideoCapture(args.cam)
         self.track = VideoTracker(args=args)
-
+        # df = spark.readStream\
+        # .format("kafka")\
+        # .option("kafka.bootstrap.servers", "10.0.2.196:9092,10.0.2.197:9093")\
+        # .option("subscribe", "my-topic")\
+        # .load()\
+        # .select(col('value').cast('string').alias('data'))\
+        # .writeStream\
+        # .foreach(lambda x: print(x))\
+        # .start().awaitTermination()
 
     def run(self):
         while self.camera.grab():
